@@ -1,7 +1,10 @@
+import argparse
 import logging
+import sys
 
 import asyncio
 import urllib.parse
+from optparse import OptionParser
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +52,7 @@ class HTTPProxyProtocol(asyncio.BaseProtocol):
 
     def eof_received(self):
         logger.debug('L: EOF received')
+        self._child._transport.write_eof()
 
     def connection_lost(self, exc):
         logger.debug('L: Connection_lost, exc: %s', exc)
@@ -76,6 +80,7 @@ class _HTTPProxyProtocol_R(asyncio.BaseProtocol):
 
     def eof_received(self):
         logger.debug('R: EOF received')
+        self._parent._transport.write_eof()
 
     def connection_lost(self, exc):
         logger.debug('R: Connection lost, exc: %s', exc)
@@ -97,8 +102,13 @@ def main():
     loghandler.setFormatter(logging.Formatter('%(asctime)s\t%(levelname)s\t%(message)s'))
     logger.addHandler(loghandler)
 
-    logger.info('Starting Server')
-    asyncio.ensure_future(UProxy.get())
+    optparser = OptionParser()
+    optparser.add_option('-l', '--localaddr', dest='localaddr', default='127.0.0.1')
+    optparser.add_option('-p', '--port', dest='port', default=8080)
+    options, _ = optparser.parse_args()
+
+    logger.info('Starting Server on %s:%s' %(options.localaddr, options.port))
+    asyncio.ensure_future(UProxy.get(localaddr=options.localaddr, port=options.port))
     asyncio.get_event_loop().run_forever()
 
 

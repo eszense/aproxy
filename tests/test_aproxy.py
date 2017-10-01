@@ -6,7 +6,7 @@ import asyncio
 import aiohttp as aiohttp
 import pytest
 
-from uproxy import HTTPProxyProtocol
+from aproxy import HTTPProxyProtocol
 
 logger = logging.getLogger(__name__)
 
