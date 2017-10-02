@@ -1,3 +1,4 @@
+import ssl
 import urllib.request
 import urllib.parse
 import logging
@@ -7,21 +8,40 @@ import aiohttp as aiohttp
 import pytest
 
 from aproxy import HTTPProxyProtocol
+from aproxy.decrpyt import DecryptProxyProtocol
 
 logger = logging.getLogger(__name__)
+
+loglevel = logging.INFO
+logger.setLevel(loglevel)
+loghandler = logging.StreamHandler()
+loghandler.setLevel(loglevel)
+loghandler.setFormatter(logging.Formatter('%(asctime)s\t%(levelname)s\t%(message)s'))
+logger.addHandler(loghandler)
+
 
 @pytest.fixture
 def localip():
     with urllib.request.urlopen('https://diagnostic.opendns.com/myip') as resp:
         return resp.read().decode()
 
-@pytest.fixture(params=["http", "https"])
-def protocol(request):
-    return request.param
 
-def test_authproxy(localip, protocol):
+@pytest.mark.parametrize('protocol', [
+    "http",
+    "https"
+])
+@pytest.mark.parametrize('proxyprotocol', [
+    HTTPProxyProtocol,
+    DecryptProxyProtocol
+])
+def test_authproxy(localip, protocol, proxyprotocol):
     async def test_authproxy_async(localip, protocol):
-        async with aiohttp.ClientSession() as session:
+
+        ssl_ctx = ssl.create_default_context(cafile='cache/ssl/CA.crt')
+        ssl_ctx.load_default_certs()
+        conn = aiohttp.TCPConnector(ssl_context=ssl_ctx)
+
+        async with aiohttp.ClientSession(connector=conn) as session:
             async with session.get('%s://diagnostic.opendns.com/myip' % protocol,
                                    proxy="http://127.0.0.1:8080"
                                    ) as resp:
@@ -86,7 +106,7 @@ def test_authproxy(localip, protocol):
 
 
     loop = asyncio.get_event_loop()
-    server = loop.create_server(HTTPProxyProtocol, '127.0.0.1', 8080)
+    server = loop.create_server(proxyprotocol, '127.0.0.1', 8080)
     logger.info('Starting Server')
     server = loop.run_until_complete(server)
     logger.info('Sending test request')
