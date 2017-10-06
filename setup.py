@@ -1,5 +1,6 @@
 from distutils.core import setup
 
 setup(
-    name='aproxy'
+    name='aproxy',
+    packages=['aproxy']
 )
